@@ -1,4 +1,7 @@
+import base64
 import hashlib
+import hmac
+
 import jwt
 from app.constant import PWD_HASH_SALT, PWD_HASH_ITERATIONS
 from app.dao.user import UserDAO
@@ -10,64 +13,48 @@ class UserService:
     def __init__(self, dao: UserDAO):
         self.dao = dao
 
-    def get_one(self, uid):
-        return self.dao.get_one(uid)
+    def get_one(self, user_name):
+        return self.dao.get_one(user_name)
+
+    def delete_user(self, user_name):
+        self.dao.delete_user(user_name)
+
+    def update_user(self, data, username):
+        password = data.get('password')
+        hashed_password = self.get_hash(password)
+        data['password'] = hashed_password
+        self.dao.update_user(data, username)
 
     def get_all(self):
         return self.dao.get_all()
 
     def create_user(self, data):
-        data['password'] = self.get_hash(data['password'])
-        return self.dao.create_user(data)
-
-    def update(self, data):
-        return self.dao.update(data)
-
-    def delete(self, uid):
-        self.dao.delete(uid)
-
-    def get_access_token(self, data: dict):
-        min10 = datetime.utcnow() + timedelta(days=10)
-        data['exp'] = int(min10.timestamp())
-        access_token = jwt.encode(data, PWD_HASH_SALT)
-
-        days130 = datetime.utcnow() + timedelta(days=130)
-        data['exp'] = int(days130.timestamp())
-        refresh_token = jwt.encode(data, PWD_HASH_SALT)
-
-        return {'access_token': access_token, 'refresh_token': refresh_token, 'exp': data['exp']}
+        password = data.get('password')
+        hashed_password = self.get_hash(password)
+        data['password'] = hashed_password
+        self.dao.create_user(data)
 
     def get_hash(self, password):
-        return hashlib.pbkdf2_hmac(
+        hashed_password = hashlib.pbkdf2_hmac(
             'sha256',
             password.encode('utf-8'),
             PWD_HASH_SALT,
             PWD_HASH_ITERATIONS
-        ).decode('utf-8', 'ignore')
+        )
+        return base64.b64encode(hashed_password)
 
-    def auth_user(self, username, password):
-        user = self.dao.get_user_by_username(username)
+    def compare_passwords(self, password_hash, other_password):
 
-        if not user:
-            return  None
+        decoder_digest = base64.b64decode(password_hash)
 
-        hash_password = self.get_hash(password)
+        hash_digest = hashlib.pbkdf2_hmac(
+            'sha256',
+            other_password.encode('utf-8'),
+            PWD_HASH_SALT,
+            PWD_HASH_ITERATIONS
+            )
 
-        if hash_password != user.password:
-            return None
+        return hmac.compare_digest(decoder_digest, hash_digest)
 
-        data = {
-            'username': user.username,
-            'role': user.role,
-        }
 
-        return self.get_access_token(data)
-
-    def check_refresh_token(self, refresh_token: str):
-        try:
-            data = jwt.decode(jwt=refresh_token, key=PWD_HASH_SALT, algorithms='HS256')
-        except Exception as e:
-            return None
-
-        return self.get_access_token(data)
 

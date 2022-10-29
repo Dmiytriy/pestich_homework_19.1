@@ -4,6 +4,7 @@ from flask import abort
 import jwt
 
 from app.constant import secret, algo
+from app.services.user import UserService
 
 
 class AuthentificaionService:
@@ -11,12 +12,14 @@ class AuthentificaionService:
         self.user_service = user_service
 
     def generate_tokens(self, username, password, is_refresh=False):
-        user = self.user_service.get_user(username)
+        user = self.user_service.get_one(username)
+
 
         if user is None:
             abort(401)
 
         if not is_refresh:
+
             if not self.user_service.compare_passwords(user.password, password):
                 abort(401)
 
@@ -36,6 +39,7 @@ class AuthentificaionService:
         try:
             user_data = jwt.decode(jwt=token, key=secret, algorithms=[algo])
             user_name = user_data.get('username')
+            print(user_name)
             return self.generate_tokens(user_name, None, is_refresh=True)
         except Exception:
             abort(401)

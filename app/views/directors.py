@@ -49,7 +49,7 @@ class DirectorViews(Resource):
             director_service.update(data)
             return '', 201
         except Exception:
-            return  404
+            return 404
 
     @admin_required
     def delete(self, did):

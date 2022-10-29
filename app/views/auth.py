@@ -1,8 +1,7 @@
 from flask import request
-from flask_restx import Resource, Namespace, abort
+from flask_restx import Resource, Namespace
 
-from app.container import user_service
-from app.dao.models.user import UserSchema
+from app.container import auth_service
 
 auth_ns = Namespace('auth')
 
@@ -10,29 +9,24 @@ auth_ns = Namespace('auth')
 @auth_ns.route("/")
 class AuthViews(Resource):
     def post(self):
-        req_json = request.json
+        data = request.json
 
-        username = req_json.get('username')
-        password = req_json.get('password')
+        username = data.get('username', None)
+        password = data.get('password', None)
 
-        if not username and not password:
-            abort(400)
+        if None in [username, password]:
+            return "Отсутствует логин или пароль", 400
 
-        token = user_service.auth_user(username. username, password)
+        tokens = auth_service.generate_tokens(username, password)
 
-        if not token:
-            return {"error": "Ошибка в логине или пароле"}, 401
-
-        return token, 201
+        return tokens, 201
 
     def put(self):
         req_json = request.json
         refresh_token = req_json.get('refresh_token')
+        print(refresh_token)
 
-        if refresh_token in None:
-            return {'error': 'Токен плохой'}, 400
-
-        tokens = user_service.check_refresh_token(refresh_token)
+        tokens = auth_service.update_tokens(refresh_token)
 
         return tokens, 201
 

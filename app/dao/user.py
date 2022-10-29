@@ -5,12 +5,22 @@ class UserDAO:
     def __init__(self, session):
         self.session = session
 
-    def get_one(self, uid):
-        return self.session.query(User).get(uid)
+    def get_one(self, user_name):
+        return self.session.query(User).filter(User.username == user_name).one()
+
+    def delete_user(self, user_name):
+        user = self.get_one(user_name)
+
+        self.session.delete(user)
+        self.session.commit()
+
+    def update_user(self, data, username):
+        self.session.query(User).filter(User.username == username).update(data)
+        self.session.commit()
 
     def get_all(self):
-        return self.session.query(User).all()
-
+        users = self.session.query(User).all()
+        return users
 
     def create_user(self, data):
         user = User(**data)
@@ -20,18 +30,5 @@ class UserDAO:
 
         return user
 
-    def update(self, data):
-        uid = data.get('id')
 
-        self.session.query(User).filter(User.id == uid).update(data)
-        self.session.commit()
 
-    def delete(self, uid):
-        user = self.get_one(uid)
-
-        self.session.delete(user)
-        self.session.commit()
-
-    def get_user_by_username(self, username):
-        user = self.session.query(User).filter(User.username == username).jon_or_none()
-        return user
